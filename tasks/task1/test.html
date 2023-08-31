@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="../../mat4.js"></script>
+  <script src="webgl-utils.js"></script>
+  <title>Document</title>
+</head>
+
+<body>
+  <canvas id="webglcanvas" style="border: none;" width="500" height="500"></canvas>
+
+  <script id="vs" type="vertex">
+    #version 300 es
+ 
+    // an attribute is an input (in) to a vertex shader.
+    // It will receive data from a buffer
+    in vec4 a_position;
+    
+    // all shaders have a main function
+    void main() {
+    
+      // gl_Position is a special variable a vertex shader
+      // is responsible for setting
+      gl_Position = a_position;
+    }
+  </script>
+
+  <script id="fs" type="fragment">
+    #version 300 es
+ 
+    // fragment shaders don't have a default precision so we need
+    // to pick one. highp is a good default. It means "high precision"
+    precision highp float;
+    
+    // we need to declare an output for the fragment shader
+    out vec4 outColor;
+    
+    void main() {
+      // Just set the output to a constant reddish-purple
+      outColor = vec4(0, 1, 0, 1);
+    }
+  </script>
+  <script>
+    const renderCircle = (dx, dy, r, gl) => {
+      const ver = [];
+      console.log('heres', gl);
+      for (let i = 0; i < 300; i++) {
+        ver.push(r * Math.cos(i * Math.PI / 180) + dx);
+        ver.push(r * Math.sin(i * Math.PI / 180) + dy);
+      }
+      const circuloVAO = gl.createVertexArray();
+      gl.bindVertexArray(circuloVAO);
+
+      const codigoVertices = gl.createBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER, codigoVertices);
+      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(ver), gl.STATIC_DRAW);
+      gl.enableVertexAttribArray(0);
+      gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+      gl.bindVertexArray(null);
+      gl.bindBuffer(gl.ARRAY_BUFFER, null);
+
+      // gl.uniform4f(uColor, 1, 0, 0, 1);
+      gl.bindVertexArray(circuloVAO);
+      console.log(ver);
+      gl.drawArrays(gl.TRIANGLES_FAN, 0, ver.length / 2);
+      gl.bindVertexArray(null);
+    }
+
+    const main = () => {
+
+      const canvas = document.getElementById("webglcanvas");
+
+      const gl = canvas.getContext('webgl2');
+      gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
+
+      const vertexShader = createShader(gl, gl.VERTEX_SHADER, document.getElementById("vs").text.trim());
+      const fragmentShader = createShader(gl, gl.FRAGMENT_SHADER, document.getElementById("fs").text.trim());
+
+      const program = createProgram(gl, vertexShader, fragmentShader)
+
+      const positionAttributeLocation = gl.getAttribLocation(program, "a_position");
+
+      const positionBuffer = gl.createBuffer();
+
+      gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+
+      // three 2d points
+      const positions = [
+        0, 0,
+        0, 0.5,
+        0.7, 0,
+      ];
+      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(positions), gl.STATIC_DRAW);
+
+
+      const vao = gl.createVertexArray();
+
+      gl.bindVertexArray(vao);
+
+      gl.enableVertexAttribArray(positionAttributeLocation);
+
+
+      const size = 2;          // 2 components per iteration
+      const type = gl.FLOAT;   // the data is 32bit floats
+      const normalize = false; // don't normalize the data
+      const stride = 0;        // 0 = move forward size * sizeof(type) each iteration to get the next position
+      const offset = 0;        // start at the beginning of the buffer
+      gl.vertexAttribPointer(
+        positionAttributeLocation, size, type, normalize, stride, offset);
+
+      resizeCanvasToDisplaySize(gl.canvas);
+
+      gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
+
+      // Clear the canvas
+      gl.clearColor(0, 0, 0, 0);
+      gl.clear(gl.COLOR_BUFFER_BIT);
+
+      // Tell it to use our program (pair of shaders)
+      gl.useProgram(program);
+
+      // Bind the attribute/buffer set we want.
+      gl.bindVertexArray(vao);
+
+      const primitiveType = gl.TRIANGLES;
+      const offset1 = 0;
+      const count = 3;
+      gl.drawArrays(primitiveType, offset1, count);
+      renderCircle(1, 1, 1, gl);
+    }
+
+    window.onload = main();
+  </script>
+
+</body>
+
+</html>
