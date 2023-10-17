@@ -1,0 +1,368 @@
+﻿<!DOCTYPE HTML>
+<html>
+
+<head>
+  <title>Triángulo en WebGL 2.0</title>
+  <meta http-equiv="content-type" content="text/html; charset=UTF-8">
+  <script src="mat4.js"></script>
+</head>
+
+<body>
+  <h2>Triángulo en WebGL 2.0 Mat</h2>
+  <canvas id="webglcanvas" style="border: none;" width="500" height="500"></canvas>
+  <noscript>
+    <p><b>Lo siento, pero ésta página requiere JavaScript.</b></p>
+  </noscript>
+  <script id="vs" type="vertex">
+          #version 300 es
+          uniform mat4 uMatrizProyeccion;
+          uniform mat4 uMatrizVista;
+          uniform mat4 uMatrizModelo;
+          layout(location = 0) in vec2 aVertices;
+          layout(location = 1) in vec4 aColores;
+          out vec4 vColores;
+          void main() {
+            vColores = aColores;
+          gl_Position = uMatrizProyeccion * uMatrizVista * uMatrizModelo * vec4(aVertices, 0.0, 1.0);
+    }
+  </script>
+
+  <script id="fs" type="fragment">
+    #version 300 es
+    precision mediump float;
+    in vec4 vColores;
+    out vec4 color;
+    void main() {
+        color = vColores;
+    }
+  </script>
+
+  <script>
+    let colorsRect = [255, 0, 0, 1];
+    let gl = null;
+    let sw = true;
+    const main = () => {
+
+      const canvas = document.getElementById("webglcanvas");
+
+      gl = canvas.getContext("webgl2");
+      if (!gl) {
+        document.write("WebGL 2.0 no está disponible en tu navegador");
+        return;
+      }
+
+      canvas.onmousedown = mouseDown;
+
+      gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
+
+      const shaderDeVertice = gl.createShader(gl.VERTEX_SHADER);
+      gl.shaderSource(shaderDeVertice, document.getElementById("vs").text.trim());
+      gl.compileShader(shaderDeVertice);
+      if (!gl.getShaderParameter(shaderDeVertice, gl.COMPILE_STATUS)) {
+        console.error(gl.getShaderInfoLog(shaderDeVertice));
+      }
+
+      const shaderDeFragmento = gl.createShader(gl.FRAGMENT_SHADER);
+      gl.shaderSource(shaderDeFragmento, document.getElementById("fs").text.trim());
+      gl.compileShader(shaderDeFragmento);
+      if (!gl.getShaderParameter(shaderDeFragmento, gl.COMPILE_STATUS)) {
+        console.error(gl.getShaderInfoLog(shaderDeFragmento));
+      }
+
+      const programID = gl.createProgram();
+      gl.attachShader(programID, shaderDeVertice);
+      gl.attachShader(programID, shaderDeFragmento);
+      gl.linkProgram(programID);
+      if (!gl.getProgramParameter(programID, gl.LINK_STATUS)) {
+        console.error(gl.getProgramInfoLog(programID));
+      }
+
+      gl.useProgram(programID);
+
+      const uMatrizProyeccion = gl.getUniformLocation(programID, "uMatrizProyeccion");
+      const uMatrizVista = gl.getUniformLocation(programID, "uMatrizVista");
+      const uMatrizModelo = gl.getUniformLocation(programID, "uMatrizModelo");
+
+      const matrizProyeccion = new Array(16);
+      const matrizVista = new Array(16);
+      const matrizModelo = new Array(16);
+
+      ortho(matrizProyeccion, -10, 10, -10, 10, -10, 10);
+      gl.uniformMatrix4fv(uMatrizProyeccion, false, matrizProyeccion);
+
+      identidad(matrizVista);
+      gl.uniformMatrix4fv(uMatrizVista, false, matrizVista);
+
+      identidad(matrizModelo);
+      gl.uniformMatrix4fv(uMatrizModelo, false, matrizModelo);
+
+      const vertices = [
+        -1, -1,
+        1, -1,
+        1, 1,
+        -1, 1
+      ];
+
+
+      const colores = [
+        1, 0, 0, 1,
+        1, 1, 1, 1,
+        0, 0, 1, 1,
+        0, 1, 0, 1,
+      ]
+
+      const colorsR = [
+        1, 0, 0, 1,
+        1, 0, 0, 1,
+        1, 0, 0, 1,
+        1, 0, 0, 1
+      ]
+
+      const colorsG = [
+        0, 1, 0, 1,
+        0, 1, 0, 1,
+        0, 1, 0, 1,
+        0, 1, 0, 1
+      ]
+
+      const colorsB = [
+        0, 0, 1, 1,
+        0, 0, 1, 1,
+        0, 0, 1, 1,
+        0, 0, 1, 1
+      ]
+
+      const colorsW = [
+        1, 1, 1, 1,
+        1, 1, 1, 1,
+        1, 1, 1, 1,
+        1, 1, 1, 1
+      ]
+
+      // const trianguloVAO = gl.createVertexArray();
+      // gl.bindVertexArray(trianguloVAO);
+
+      // const codigoVertices = gl.createBuffer();
+
+      // gl.bindBuffer(gl.ARRAY_BUFFER, codigoVertices);
+      // gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
+      // gl.enableVertexAttribArray(0);
+      // gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+
+      // const codigoColores = gl.createBuffer();
+
+      // gl.bindBuffer(gl.ARRAY_BUFFER, codigoColores);
+      // gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(colores), gl.STATIC_DRAW);
+      // gl.enableVertexAttribArray(1);
+      // gl.vertexAttribPointer(1, 4, gl.FLOAT, false, 0, 0);
+
+      gl.clearColor(0, 0, 0, 1);
+
+      gl.clear(gl.COLOR_BUFFER_BIT);
+      // gl.bindVertexArray(trianguloVAO);
+      // gl.drawArrays(gl.TRIANGLE_FAN, 0, vertices.length / 2);
+
+      // gl.bindVertexArray(null);
+
+      const data = {
+        "rojo": { position: [-5, -5, 2, 2], colors: colorsR },
+        "verde": { position: [-5, 3, 2, 2], colors: colorsG },
+        "azul": { position: [3, 3, 2, 2], colors: colorsB },
+        "blanco": { position: [3, -5, 2, 2], colors: colorsW },
+      }
+
+      // renderRect(-5, -5, 2, 2, gl, colorsR);
+      // renderRect(-5, 3, 2, 2, gl, colorsG);
+      // renderRect(3, 3, 2, 2, gl, colorsB);
+      // renderRect(3, -5, 2, 2, gl, colorsW);
+
+
+      // Object.values(data).forEach(item =>
+      //   renderRect(...item.position, gl, item.colors
+      //   ));
+
+      renderCircle(0, 0, 2, gl, colorsRect);
+      // renderCircle(4, 0, 1, gl);
+      // renderCircle(0, 4, 1, gl);
+      // renderCircle(0, -4, 1, gl);
+
+    }
+
+    const renderCircle = (dx, dy, r, gl, colors = [255, 255, 255, 1]) => {
+      const ver = [];
+      const colores = [];
+
+      for (let i = 0; i < 360; i++) {
+        ver.push(r * Math.cos(i * Math.PI / 180) + dx);
+        ver.push(r * Math.sin(i * Math.PI / 180) + dy);
+        // colores.push((i % 256) / 256);
+        // colores.push((2 * i % 256) / 256);
+        // colores.push((3 * i % 256) / 256);
+        // colores.push(1);
+        // colores.push((4 * i % 256) / 256);
+        colores.push(colors[0] / 255);
+        colores.push(colors[1] / 255);
+        colores.push(colors[2] / 255);
+        colores.push(colors[3]);
+      }
+
+
+      const circuloVAO = gl.createVertexArray();
+      gl.bindVertexArray(circuloVAO);
+
+      const codigoVertices = gl.createBuffer();
+
+      gl.bindBuffer(gl.ARRAY_BUFFER, codigoVertices);
+      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(ver), gl.STATIC_DRAW);
+      gl.enableVertexAttribArray(0);
+      gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+      // gl.bindVertexArray(null);
+      gl.bindBuffer(gl.ARRAY_BUFFER, null);
+
+
+      gl.clearColor(0, 0, 0, 1);
+
+      gl.clear(gl.COLOR_BUFFER_BIT);
+
+      const codigoColores = gl.createBuffer();
+
+      gl.bindBuffer(gl.ARRAY_BUFFER, codigoColores);
+      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(colores), gl.STATIC_DRAW);
+      gl.enableVertexAttribArray(1);
+      gl.vertexAttribPointer(1, 4, gl.FLOAT, false, 0, 0);
+      // gl.uniform4f(uColor, 1, 0, 0, 1);
+      gl.bindVertexArray(circuloVAO);
+      gl.drawArrays(gl.TRIANGLE_FAN, 0, ver.length / 2);
+      gl.bindVertexArray(null);
+
+    }
+
+    const renderRect = (dx, dy, width, height, gl, colores) => {
+      const vertices = [
+        dx, dy,
+        dx + width, dy,
+        dx + width, dy + height,
+        dx, dy + height
+      ];
+
+
+      const rectVAO = gl.createVertexArray();
+      gl.bindVertexArray(rectVAO);
+
+      const codigoVertices = gl.createBuffer();
+
+      gl.bindBuffer(gl.ARRAY_BUFFER, codigoVertices);
+      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
+      gl.enableVertexAttribArray(0);
+      gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+      // gl.bindVertexArray(null);
+      gl.bindBuffer(gl.ARRAY_BUFFER, null);
+
+      // gl.uniform4f(uColor, 1, 0, 0, 1);
+
+      ////
+      // const colores = [
+      //   0, 1, 0, 1,
+      //   0, 1, 0, 1,
+      //   0, 1, 0, 1,
+      //   0, 1, 0, 1
+      // ]
+      const codigoColores = gl.createBuffer();
+
+      gl.bindBuffer(gl.ARRAY_BUFFER, codigoColores);
+      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(colores), gl.STATIC_DRAW);
+      gl.enableVertexAttribArray(1);
+      gl.vertexAttribPointer(1, 4, gl.FLOAT, false, 0, 0);
+      // gl.clearColor(0, 1, 0, 1);
+
+      // gl.clear(gl.COLOR_BUFFER_BIT);
+      /////
+
+      gl.bindVertexArray(rectVAO);
+      gl.drawArrays(gl.TRIANGLE_FAN, 0, vertices.length / 2);
+      gl.bindVertexArray(null);
+
+    }
+
+
+    const touchedRect = (posx, posy, x, y, width, height) => {
+      const x1 = x;
+      const y1 = y;
+      const x2 = x + width;
+      const y2 = y + height;
+      return (x1 < posx && posx < x2) && (y1 < posy && posy < y2);
+    }
+
+    const touchedCircle = (posX, posY, x, y, r) => {
+      // const dx = Math.abs(poxX - x);
+      // const dy = Math.abs(posY - y);
+      // return dx < r && dy < r;
+
+      const x1 = x;
+      const x2 = posX;
+      const y1 = y;
+      const y2 = posY;
+      const d = Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2)
+      return d < r * r;
+    }
+
+    const dibuja = () => {
+
+    }
+
+
+    const mouseDown = (e) => {
+      // const
+      const posX = e.x - e.target.offsetLeft;
+      const posY = e.y - e.target.offsetTop;
+      console.log('e.x=', posX, ', e.y=', posY);
+      const posx = (posX * 20 / 500) - 10;
+      const posy = (20 - posY * 20 / 500) - 10
+      console.log('posx=', posx, ', posy=', posy);
+
+      // if (touchedRect(posx, posy, -1, -1, 2, 2)) {
+      //   alert('touched!!')
+      // }
+      // if (touchedRect(posx, posy, -5, -5, 2, 2)) {
+      //   alert('Rojo')
+      // }
+      // if (touchedRect(posx, posy, -5, 3, 2, 2)) {
+      //   alert('Verde')
+      // }
+      // if (touchedRect(posx, posy, 3, 3, 2, 2)) {
+      //   alert('Azul')
+      // }
+      // if (touchedRect(posx, posy, 3, -5, 2, 2)) {
+      //   alert('Blanco')
+      // }
+      // renderCircle(-4, 0, 1, gl);
+      // renderCircle(4, 0, 1, gl);
+      // renderCircle(0, 4, 1, gl);
+      // renderCircle(0, -4, 1, gl);
+      // if (touchedCircle(posx, posy, -4, 0, 1) ||
+      //   touchedCircle(posx, posy, 4, 0, 1) ||
+      //   touchedCircle(posx, posy, 0, 4, 1) ||
+      //   touchedCircle(posx, posy, 0, -4, 1)
+      // ) {
+      //   alert('Circulo')
+      // }
+
+      if (touchedCircle(posx, posy, 0, 0, 2)) {
+        // alert('Circulo');
+        sw = !sw;
+        if (sw)
+          colorsRect = [0, 255, 0, 1];
+        else
+          colorsRect = [255, 0, 0, 1];
+
+        renderCircle(0, 0, 2, gl, colorsRect)
+      }
+    }
+
+
+    window.onload = main;
+
+  </script>
+</body>
+
+</html>

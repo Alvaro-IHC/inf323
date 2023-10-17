@@ -1,0 +1,290 @@
+﻿<!DOCTYPE HTML>
+<html>
+
+<head>
+  <title></title>
+  <meta http-equiv="content-type" content="text/html; charset=UTF-8">
+</head>
+
+<body>
+  <h2>Alvaro Israel Huanca Condori</h2>
+  <canvas id="webglcanvas" style="border: none;" width="500" height="500"></canvas>
+  <noscript>
+    <p><b>Sorry, JS is required.</b></p>
+  </noscript>
+  <script id="vs" type="vertex">
+    #version 300 es
+    uniform mat4 uMatrizProyeccion;
+    uniform mat4 uMatrizVista;
+    uniform mat4 uMatrizModelo;
+    layout(location = 0) in vec2 aVertices;
+    layout(location = 1) in vec4 aColores;
+    out vec4 vColores;
+    void main() {
+      vColores = aColores;
+      gl_Position = uMatrizProyeccion * uMatrizVista * uMatrizModelo * vec4(aVertices, 0.0, 1.0);
+    }
+  </script>
+
+  <script id="fs" type="fragment">
+    #version 300 es
+    precision mediump float;
+    in vec4 vColores;
+    out vec4 color;
+    void main() {
+        color = vColores;
+    }
+  </script>
+
+  <script>
+
+    let gl = null;
+    let boardObj;
+    let isPlayerOne = true;
+
+    const main = () => {
+
+      const canvas = document.getElementById("webglcanvas");
+
+      gl = canvas.getContext("webgl2");
+      if (!gl) {
+        document.write("WebGL 2.0 no está disponible en tu navegador");
+        return;
+      }
+
+      canvas.onmousedown = mouseDown;
+
+      gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
+
+      const shaderDeVertice = gl.createShader(gl.VERTEX_SHADER);
+      gl.shaderSource(shaderDeVertice, document.getElementById("vs").text.trim());
+      gl.compileShader(shaderDeVertice);
+      if (!gl.getShaderParameter(shaderDeVertice, gl.COMPILE_STATUS)) {
+        console.error(gl.getShaderInfoLog(shaderDeVertice));
+      }
+
+      const shaderDeFragmento = gl.createShader(gl.FRAGMENT_SHADER);
+      gl.shaderSource(shaderDeFragmento, document.getElementById("fs").text.trim());
+      gl.compileShader(shaderDeFragmento);
+      if (!gl.getShaderParameter(shaderDeFragmento, gl.COMPILE_STATUS)) {
+        console.error(gl.getShaderInfoLog(shaderDeFragmento));
+      }
+
+      const programID = gl.createProgram();
+      gl.attachShader(programID, shaderDeVertice);
+      gl.attachShader(programID, shaderDeFragmento);
+      gl.linkProgram(programID);
+      if (!gl.getProgramParameter(programID, gl.LINK_STATUS)) {
+        console.error(gl.getProgramInfoLog(programID));
+      }
+
+      gl.useProgram(programID);
+
+      const uMatrizProyeccion = gl.getUniformLocation(programID, "uMatrizProyeccion");
+      const uMatrizVista = gl.getUniformLocation(programID, "uMatrizVista");
+      const uMatrizModelo = gl.getUniformLocation(programID, "uMatrizModelo");
+
+      const matrizProyeccion = new Array(16);
+      const matrizVista = new Array(16);
+      const matrizModelo = new Array(16);
+
+      ortho(matrizProyeccion, -10, 10, -10, 10, -10, 10);
+      gl.uniformMatrix4fv(uMatrizProyeccion, false, matrizProyeccion);
+
+      identidad(matrizVista);
+      gl.uniformMatrix4fv(uMatrizVista, false, matrizVista);
+
+      identidad(matrizModelo);
+      gl.uniformMatrix4fv(uMatrizModelo, false, matrizModelo);
+
+      // game
+      boardObj = board();
+      boardObj.render();
+
+    }
+
+    const Cell = () => {
+
+      let position = [];
+      let value = '';
+
+      const addToken = (player) => {
+        value = player;
+      };
+
+      const getValue = () => value;
+
+      const addPosition = (x, y) => {
+        position = [x, y];
+      }
+
+      const getPosition = () => position;
+
+      return {
+        addToken,
+        getValue,
+        addPosition,
+        getPosition,
+      };
+    }
+
+    const board = () => {
+
+      const cellRadio = 0.8;
+      const cells = [];
+
+      const _fillCell = () => {
+        for (let i = -6; i <= 4; i += 2) {
+          for (let j = -6; j <= 6; j += 2) {
+            const cell = Cell();
+            cell.addPosition(j, i);
+            cells.push(cell);
+          }
+        }
+      }
+
+      _fillCell();
+
+      const renderBoard = () => {
+        gl.clearColor(0, 0, 0, 1);
+        gl.clear(gl.COLOR_BUFFER_BIT);
+
+        const points = [
+          -7.5, -7.2,
+          7.5, -7.2,
+          7.5, 5.2,
+          -7.5, 5.2
+        ];
+
+        const colors = [
+          18 / 255, 1 / 255, 250 / 255, 0.9,
+          18 / 255, 1 / 255, 250 / 255, 0.9,
+          18 / 255, 1 / 255, 250 / 255, 0.9,
+          18 / 255, 1 / 255, 250 / 255, 0.9
+        ];
+
+        const boardVAO = gl.createVertexArray();
+        gl.bindVertexArray(boardVAO);
+
+        createAndBindBuffer(points, 0, 2);
+        createAndBindBuffer(colors, 1, 4);
+
+        gl.drawArrays(gl.TRIANGLE_FAN, 0, points.length / 2);
+        gl.bindVertexArray(null);
+
+        for (let i = 0; i < cells.length; i++) {
+          const token = cells[i].getValue();
+          renderCircle(...cells[i].getPosition(),
+            cellRadio,
+            token === 'p1'
+              ? [255, 0, 0, 1]
+              : token === 'p2'
+                ? [255, 255, 0, 1]
+                : [0, 0, 0, 1]);
+        }
+      };
+
+      return {
+        render: renderBoard,
+        cellRadio,
+        cells,
+      }
+
+    }
+
+    const createAndBindBuffer = (data, attributeLocation, attributeSize) => {
+      const buffer = gl.createBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(data), gl.STATIC_DRAW);
+      gl.enableVertexAttribArray(attributeLocation);
+      gl.vertexAttribPointer(attributeLocation, attributeSize, gl.FLOAT, false, 0, 0);
+    };
+
+    const renderCircle = (dx, dy, r, colors = [255, 255, 255, 1]) => {
+      const points = [];
+      const colorsArray = [];
+
+      for (let i = 0; i < 360; i++) {
+        points.push(r * Math.cos(i * Math.PI / 180) + dx);
+        points.push(r * Math.sin(i * Math.PI / 180) + dy);
+        colorsArray.push(colors[0] / 255);
+        colorsArray.push(colors[1] / 255);
+        colorsArray.push(colors[2] / 255);
+        colorsArray.push(colors[3]);
+      }
+
+      const circleVAO = gl.createVertexArray();
+      gl.bindVertexArray(circleVAO);
+
+      createAndBindBuffer(points, 0, 2);
+      createAndBindBuffer(colorsArray, 1, 4);
+
+      gl.drawArrays(gl.TRIANGLE_FAN, 0, points.length / 2);
+      gl.bindVertexArray(null);
+
+    }
+
+    const touchedCircle = (posX, posY, x, y, r) => {
+      const x1 = x;
+      const x2 = posX;
+      const y1 = y;
+      const y2 = posY;
+      const d = Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2)
+      return d < r * r;
+    }
+
+    const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+    const mouseDown = async (e) => {
+      const posX = e.x - e.target.offsetLeft;
+      const posY = e.y - e.target.offsetTop;
+      const posx = (posX * 20 / 500) - 10;
+      const posy = (20 - posY * 20 / 500) - 10;
+
+      for (let i = 0; i < boardObj.cells.length; i++) {
+        const x = boardObj.cells[i].getPosition()[0];
+        const y = boardObj.cells[i].getPosition()[1];
+
+        if (touchedCircle(posx, posy, x, y, boardObj.cellRadio)) {
+          const cell = boardObj.cells[i];
+
+          if (!cell.getValue()) {
+            cell.addToken(isPlayerOne ? 'p1' : 'p2');
+            boardObj.render();
+            let row = i;
+
+            while (row - 7 >= 0) {
+              row = row - 7;
+              if (!boardObj.cells[row].getValue()) {
+                await sleep((row - 6) * 10);
+                boardObj.cells[row + 7].addToken('');
+                boardObj.cells[row].addToken(isPlayerOne ? 'p1' : 'p2');
+                boardObj.render();
+              }
+            }
+            isPlayerOne = !isPlayerOne;
+          }
+        }
+      }
+    }
+
+    const identidad = (r) => {
+      r[0] = 1; r[4] = 0; r[8] = 0; r[12] = 0;
+      r[1] = 0; r[5] = 1; r[9] = 0; r[13] = 0;
+      r[2] = 0; r[6] = 0; r[10] = 1; r[14] = 0;
+      r[3] = 0; r[7] = 0; r[11] = 0; r[15] = 1;
+    }
+
+    const ortho = (r, izq, der, abj, arr, cerca, lejos) => {
+      r[0] = 2 / (der - izq); r[4] = 0; r[8] = 0; r[12] = -(der + izq) / (der - izq);
+      r[1] = 0; r[5] = 2 / (arr - abj); r[9] = 0; r[13] = -(arr + abj) / (arr - abj);
+      r[2] = 0; r[6] = 0; r[10] = -2 / (lejos - cerca); r[14] = -(lejos + cerca) / (lejos - cerca);
+      r[3] = 0; r[7] = 0; r[11] = 0; r[15] = 1;
+    }
+
+    window.onload = main;
+
+  </script>
+</body>
+
+</html>
